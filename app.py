@@ -1,9 +1,11 @@
+
 import os
 import streamlit as st
+
 from langchain_groq import ChatGroq
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.tools import tool
-from langchain.agents import create_react_agent, AgentExecutor
-from langchain import hub
 
 # ---------------------------
 # API KEY
@@ -23,56 +25,55 @@ llm = ChatGroq(
 )
 
 # ---------------------------
-# TOOL 1: Simple Finance Helper
+# TOOL: Finance Assistant
 # ---------------------------
 @tool
 def finance_advisor(query: str) -> str:
-    """
-    Gives basic financial guidance and explanations.
-    """
+    """Explains finance topics simply"""
     prompt = f"""
-    You are a financial assistant.
-    Explain in simple words:
+    You are a finance expert AI.
 
+    Explain this in simple words:
     {query}
     """
     return llm.invoke(prompt).content
 
 # ---------------------------
-# TOOL 2: Stock Info (simple demo tool)
+# TOOL: Stock Explanation
 # ---------------------------
 @tool
-def stock_info(symbol: str) -> str:
-    """
-    Explain about a stock symbol (no real-time API in this basic version).
-    """
+def stock_explainer(symbol: str) -> str:
+    """Explains company/stock info"""
     prompt = f"""
-    Explain about stock {symbol}.
-    Include what company does and basic investment idea.
+    Explain this company stock: {symbol}
+    Include business overview and investment idea.
     """
     return llm.invoke(prompt).content
 
-tools = [finance_advisor, stock_info]
+tools = [finance_advisor, stock_explainer]
 
 # ---------------------------
-# AGENT
+# SIMPLE ROUTER (NO AGENTS)
 # ---------------------------
-prompt = hub.pull("hwchase17/react")
-
-agent = create_react_agent(llm, tools, prompt)
-
-agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+def run_finance_ai(user_input):
+    if any(word.lower() in user_input.lower() for word in ["stock", "share", "company"]):
+        return stock_explainer.invoke(user_input)
+    else:
+        return finance_advisor.invoke(user_input)
 
 # ---------------------------
 # STREAMLIT UI
 # ---------------------------
-st.title("💰 AI Finance Agent (LangChain + Groq)")
+st.set_page_config(page_title="AI Finance Agent", page_icon="💰")
+
+st.title("💰 AI Finance Agent (Groq + LangChain)")
 
 user_input = st.text_input("Ask finance question:")
 
-if st.button("Run Agent"):
+if st.button("Run"):
     if user_input:
-        result = agent_executor.invoke({"input": user_input})
-        st.write(result["output"])
+        with st.spinner("Analyzing finance data..."):
+            result = run_finance_ai(user_input)
+        st.success(result)
     else:
         st.warning("Enter a question")
